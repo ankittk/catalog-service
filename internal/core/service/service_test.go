@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ankittk/catalog-service/internal/model"
+	"github.com/ankittk/catalog-service/internal/core/model"
 	v1 "github.com/ankittk/catalog-service/proto/v1"
 )
 
