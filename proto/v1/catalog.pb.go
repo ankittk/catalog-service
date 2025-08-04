@@ -7,8 +7,8 @@
 package v1
 
 import (
-	_ "github.com/ankittk/catalog-service/proto/google/api"
-	_ "github.com/ankittk/catalog-service/proto/validate"
+	_ "github.com/envoyproxy/protoc-gen-validate/validate"
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
