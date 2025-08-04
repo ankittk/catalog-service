@@ -14,14 +14,18 @@ type Config struct {
 
 	// LogLevel for logging
 	LogLevel string
+
+	// Environment for the application
+	Environment string
 }
 
 // Load reads environment variables and returns the Config
 func Load() *Config {
 	cfg := &Config{
-		GRPCPort: getEnv("GRPC_PORT", "9000"),
-		HTTPPort: getEnv("HTTP_PORT", "8000"),
-		LogLevel: getEnv("LOG_LEVEL", "info"),
+		GRPCPort:    getEnv("GRPC_PORT", "9000"),
+		HTTPPort:    getEnv("HTTP_PORT", "8000"),
+		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		Environment: getEnv("ENVIRONMENT", "development"),
 	}
 
 	if err := cfg.Validate(); err != nil {
