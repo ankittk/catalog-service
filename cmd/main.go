@@ -16,22 +16,47 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/ankittk/catalog-service/internal/catalog"
 	"github.com/ankittk/catalog-service/internal/config"
+	"github.com/ankittk/catalog-service/internal/server"
 	v1 "github.com/ankittk/catalog-service/proto/v1"
 )
+
+var (
+	catalogServer *server.Server
+	logger        *zap.SugaredLogger
+)
+
+// init loads the in-memory data and initializes the catalog server
+func init() {
+	// Initialize logger using Uber's Zap
+	zapLogger, _ := zap.NewProduction()
+	logger = zapLogger.Sugar()
+
+	// Read YAML file and initialize service store
+	yamlData, err := os.ReadFile("data/services.yaml")
+	if err != nil {
+		logger.Fatalw("failed to read services.yaml", "error", err)
+	}
+
+	catalogServer, err = server.NewCatalogServerFromYAML(yamlData)
+	if err != nil {
+		logger.Fatalw("failed to parse services.yaml", "error", err)
+	}
+}
 
 func main() {
 	// Load configuration from environment variables or defaults
 	cfg := config.Load()
 
-	// Initialize logger using Uber's zap
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
-	sugar := logger.Sugar()
+	logger.Infow("starting catalog service", "grpc_port", cfg.GRPCPort, "http_port", cfg.HTTPPort)
 
-	sugar.Infow("starting catalog service", "grpc_port", cfg.GRPCPort, "http_port", cfg.HTTPPort)
+	if err := startServers(cfg); err != nil {
+		logger.Fatalw("server stopped with error", "error", err)
+	}
+}
 
+// startServers starts both gRPC and HTTP servers with graceful shutdown
+func startServers(cfg *config.Config) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -40,7 +65,7 @@ func main() {
 
 	// Start gRPC server
 	go func() {
-		errs <- runGRPCServer(ctx, cfg, sugar)
+		errs <- runGRPCServer(ctx, cfg)
 	}()
 
 	// Start HTTP gateway
@@ -48,7 +73,7 @@ func main() {
 	// This allows HTTP clients to interact with the gRPC service
 	// It also allows for easier integration with web clients
 	go func() {
-		errs <- runHTTPGateway(ctx, cfg, sugar)
+		errs <- runHTTPGateway(ctx, cfg)
 	}()
 
 	// Listen for termination signal and gracefully shut down the servers
@@ -56,20 +81,21 @@ func main() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		sig := <-c
-		sugar.Infow("shutdown signal received", "signal", sig)
+		logger.Infow("shutdown signal received", "signal", sig)
 		cancel()
 	}()
 
 	// Block until something happens or an error occurs
 	if err := <-errs; err != nil {
-		sugar.Fatalw("server stopped with error", "error", err)
-	} else {
-		sugar.Infow("server stopped gracefully")
+		return err
 	}
+
+	logger.Infow("server stopped gracefully")
+	return nil
 }
 
 // runGRPCServer starts the gRPC server and listens for incoming connections.
-func runGRPCServer(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) error {
+func runGRPCServer(ctx context.Context, cfg *config.Config) error {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPCPort))
 	if err != nil {
 		return fmt.Errorf("failed to listen on gRPC port: %w", err)
@@ -79,7 +105,7 @@ func runGRPCServer(ctx context.Context, cfg *config.Config, logger *zap.SugaredL
 	grpcServer := grpc.NewServer()
 
 	// Register the CatalogService server with the gRPC server
-	v1.RegisterCatalogServiceServer(grpcServer, catalog.NewCatalogServer())
+	v1.RegisterCatalogServiceServer(grpcServer, catalogServer)
 
 	go func() {
 		<-ctx.Done()
@@ -92,7 +118,7 @@ func runGRPCServer(ctx context.Context, cfg *config.Config, logger *zap.SugaredL
 }
 
 // runHTTPGateway starts the HTTP gateway that forwards requests to the gRPC server.
-func runHTTPGateway(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) error {
+func runHTTPGateway(ctx context.Context, cfg *config.Config) error {
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
