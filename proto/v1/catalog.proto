@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/ankittk/catalog-service/proto/v1;catalogv1";
+
+// CatalogService provides read-only operations for listing services and their versions
+service CatalogService {
+  // ListServices returns a list of services with filtering, sorting, and pagination
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse) {
+    option (google.api.http) = {
+      get: "/v1/services"
+    };
+  }
+
+  // GetService returns details for a single service
+  rpc GetService(GetServiceRequest) returns (GetServiceResponse) {
+    option (google.api.http) = {
+      get: "/v1/services/{id}"
+    };
+  }
+
+  // GetServiceVersions returns all versions of a service
+  rpc GetServiceVersions(GetServiceVersionsRequest) returns (GetServiceVersionsResponse) {
+    option (google.api.http) = {
+      get: "/v1/services/{service_id}/versions"
+    };
+  }
+}
+
+// Represents a service in the organization catalog
+message Service {
+  string id = 1;
+  string name = 2 [(validate.rules).string.min_len = 1];
+  string description = 3;
+  string organization_id = 4 [(validate.rules).string.min_len = 1];
+  repeated ServiceVersion versions = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  string url = 8; // Optional: frontend uses this to navigate to service details
+}
+
+// Represents a version of a service
+message ServiceVersion {
+  string id = 1;
+  string version = 2 [(validate.rules).string.min_len = 1];
+  string service_id = 3 [(validate.rules).string.min_len = 1];
+  string description = 4;
+  bool is_active = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// Request to list services
+message ListServicesRequest {
+  // Pagination
+  int32 page_size = 1 [(validate.rules).int32.gte = 1, (validate.rules).int32.lte = 100];
+  string page_token = 2;
+
+  // Filtering
+  string organization_id = 3;
+  string search_query = 4;
+
+  // Sorting
+  string sort_by = 5;     // Allowed: "name", "created_at", "updated_at"
+  string sort_order = 6;  // "asc" or "desc"
+}
+
+// Response with paginated list of services
+message ListServicesResponse {
+  repeated Service services = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+// Request to get a single service
+message GetServiceRequest {
+  string id = 1 [(validate.rules).string.min_len = 1];
+}
+
+// Response containing a single service
+message GetServiceResponse {
+  Service service = 1;
+}
+
+// Request to get versions of a service
+message GetServiceVersionsRequest {
+  string service_id = 1 [(validate.rules).string.min_len = 1];
+}
+
+// Response with all versions of a service
+message GetServiceVersionsResponse {
+  repeated ServiceVersion versions = 1;
+}
