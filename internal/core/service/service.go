@@ -12,8 +12,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/ankittk/catalog-service/internal/logger"
-	"github.com/ankittk/catalog-service/internal/model"
+	"github.com/ankittk/catalog-service/internal/core/model"
+	"github.com/ankittk/catalog-service/internal/infrastructure/logger"
 	v1 "github.com/ankittk/catalog-service/proto/v1"
 )
 
