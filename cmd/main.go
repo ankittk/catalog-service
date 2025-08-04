@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/ankittk/catalog-service/internal/catalog"
 	"github.com/ankittk/catalog-service/internal/config"
 	v1 "github.com/ankittk/catalog-service/proto/v1"
 )
@@ -76,6 +77,10 @@ func runGRPCServer(ctx context.Context, cfg *config.Config, logger *zap.SugaredL
 
 	// Create a new gRPC server instance
 	grpcServer := grpc.NewServer()
+
+	// Register the CatalogService server with the gRPC server
+	v1.RegisterCatalogServiceServer(grpcServer, catalog.NewCatalogServer())
+
 	go func() {
 		<-ctx.Done()
 		logger.Info("shutting down gRPC server")
