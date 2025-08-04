@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/ankittk/catalog-service/internal/app"
-	"github.com/ankittk/catalog-service/internal/infrastructure/config"
-	"github.com/ankittk/catalog-service/internal/infrastructure/logger"
+	"github.com/ankittk/catalog-service/internal/config"
+	"github.com/ankittk/catalog-service/internal/logger"
 )
 
 func main() {

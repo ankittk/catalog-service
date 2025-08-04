@@ -9,9 +9,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/yaml.v3"
 
-	"github.com/ankittk/catalog-service/internal/core/model"
-	"github.com/ankittk/catalog-service/internal/core/service"
-	"github.com/ankittk/catalog-service/internal/infrastructure/logger"
+	"github.com/ankittk/catalog-service/internal/logger"
+	"github.com/ankittk/catalog-service/internal/model"
+	"github.com/ankittk/catalog-service/internal/service"
 	v1 "github.com/ankittk/catalog-service/proto/v1"
 )
 

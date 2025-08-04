@@ -10,12 +10,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 
 	grpcserver "github.com/ankittk/catalog-service/internal/api/grpc"
-	"github.com/ankittk/catalog-service/internal/infrastructure/config"
-	"github.com/ankittk/catalog-service/internal/infrastructure/logger"
+	"github.com/ankittk/catalog-service/internal/config"
+	"github.com/ankittk/catalog-service/internal/logger"
 	v1 "github.com/ankittk/catalog-service/proto/v1"
 )
 
@@ -103,11 +105,29 @@ func (a *App) initHTTPServer() error {
 func (a *App) createHTTPHandler() http.Handler {
 	mux := http.NewServeMux()
 
+	// Create gRPC gateway mux
+	gwmux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+
+	// Register gRPC gateway handlers
+	if err := v1.RegisterCatalogServiceHandlerFromEndpoint(
+		context.Background(),
+		gwmux,
+		a.grpcAddr,
+		opts,
+	); err != nil {
+		logger.Get().Errorw("failed to register gRPC gateway", "error", err)
+		return mux
+	}
+
 	// Add health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"healthy"}`))
 	})
+
+	// Mount gRPC gateway at /v1
+	mux.Handle("/v1/", http.StripPrefix("/v1", gwmux))
 
 	return mux
 }
