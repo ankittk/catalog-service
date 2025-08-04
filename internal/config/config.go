@@ -11,6 +11,9 @@ type Config struct {
 
 	// HTTPPort is the port on which the HTTP gateway listens
 	HTTPPort string
+
+	// LogLevel for logging
+	LogLevel string
 }
 
 // Load reads environment variables and returns the Config
@@ -18,6 +21,7 @@ func Load() *Config {
 	cfg := &Config{
 		GRPCPort: getEnv("GRPC_PORT", "9000"),
 		HTTPPort: getEnv("HTTP_PORT", "8000"),
+		LogLevel: getEnv("LOG_LEVEL", "info"),
 	}
 
 	if err := cfg.Validate(); err != nil {
