@@ -14,10 +14,6 @@ build:
 
 # Run the application
 run:
-	go run $(CMD_MAIN)
-
-# Run the application with authentication enabled
-run-auth:
 	ENABLE_AUTH=true JWT_SECRET_KEY=my-secret-key go run $(CMD_MAIN)
 
 # Clean build artifacts
@@ -62,3 +58,26 @@ jwt-token:
 		-H "Content-Type: application/json" \
 		-d '{"email":"admin@org1.com","password":"admin123","organization":"org-1"}' \
 		| jq -r '.token'
+
+# Docker commands
+docker-build:
+	docker build -t catalog-service .
+
+docker-run:
+	docker run -p 8000:8000 -p 9000:9000 \
+		-e ENABLE_AUTH=true \
+		-e JWT_SECRET_KEY=my-secret-key \
+		-v $(PWD)/data:/app/data:ro \
+		catalog-service
+
+# Docker Compose commands
+compose-up:
+	docker-compose up -d
+
+compose-down:
+	docker-compose down
+
+# Clean Docker artifacts
+docker-clean:
+	docker system prune -f
+	docker image prune -f

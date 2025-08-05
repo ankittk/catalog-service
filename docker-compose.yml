@@ -1,0 +1,32 @@
+services:
+  catalog-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=info
+      - GRPC_PORT=9000
+      - HTTP_PORT=8000
+      - LOCAL_DATA_STORAGE=data/services.yaml
+      - CORS_ORIGINS=*
+      - ENABLE_AUTH=true
+      - JWT_SECRET_KEY=my-secret-key
+      - JWT_TOKEN_DURATION=24h
+    volumes:
+      - ./data:/app/data:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: catalog-network 

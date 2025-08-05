@@ -16,29 +16,6 @@
     "application/json"
   ],
   "paths": {
-    "/v1/health": {
-      "get": {
-        "summary": "HealthCheck returns the health status of the service",
-        "operationId": "CatalogService_HealthCheck",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1HealthCheckResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "tags": [
-          "CatalogService"
-        ]
-      }
-    },
     "/v1/services": {
       "get": {
         "summary": "ListServices returns a list of services with filtering, sorting, and pagination",
@@ -218,19 +195,6 @@
         }
       },
       "title": "Response with all versions of a service"
-    },
-    "v1HealthCheckResponse": {
-      "type": "object",
-      "properties": {
-        "status": {
-          "type": "string"
-        },
-        "timestamp": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "title": "Response for health check"
     },
     "v1ListServicesResponse": {
       "type": "object",

@@ -28,8 +28,6 @@ type CatalogServiceClient interface {
 	GetService(ctx context.Context, in *GetServiceRequest, opts ...grpc.CallOption) (*GetServiceResponse, error)
 	// GetServiceVersions returns all versions of a service
 	GetServiceVersions(ctx context.Context, in *GetServiceVersionsRequest, opts ...grpc.CallOption) (*GetServiceVersionsResponse, error)
-	// HealthCheck returns the health status of the service
-	HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckResponse, error)
 }
 
 type catalogServiceClient struct {
@@ -67,15 +65,6 @@ func (c *catalogServiceClient) GetServiceVersions(ctx context.Context, in *GetSe
 	return out, nil
 }
 
-func (c *catalogServiceClient) HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckResponse, error) {
-	out := new(HealthCheckResponse)
-	err := c.cc.Invoke(ctx, "/v1.CatalogService/HealthCheck", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // CatalogServiceServer is the server API for CatalogService service.
 // All implementations must embed UnimplementedCatalogServiceServer
 // for forward compatibility
@@ -86,8 +75,6 @@ type CatalogServiceServer interface {
 	GetService(context.Context, *GetServiceRequest) (*GetServiceResponse, error)
 	// GetServiceVersions returns all versions of a service
 	GetServiceVersions(context.Context, *GetServiceVersionsRequest) (*GetServiceVersionsResponse, error)
-	// HealthCheck returns the health status of the service
-	HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckResponse, error)
 	mustEmbedUnimplementedCatalogServiceServer()
 }
 
@@ -103,9 +90,6 @@ func (UnimplementedCatalogServiceServer) GetService(context.Context, *GetService
 }
 func (UnimplementedCatalogServiceServer) GetServiceVersions(context.Context, *GetServiceVersionsRequest) (*GetServiceVersionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetServiceVersions not implemented")
-}
-func (UnimplementedCatalogServiceServer) HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method HealthCheck not implemented")
 }
 func (UnimplementedCatalogServiceServer) mustEmbedUnimplementedCatalogServiceServer() {}
 
@@ -174,24 +158,6 @@ func _CatalogService_GetServiceVersions_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CatalogService_HealthCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HealthCheckRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(CatalogServiceServer).HealthCheck(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/v1.CatalogService/HealthCheck",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CatalogServiceServer).HealthCheck(ctx, req.(*HealthCheckRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // CatalogService_ServiceDesc is the grpc.ServiceDesc for CatalogService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -210,10 +176,6 @@ var CatalogService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetServiceVersions",
 			Handler:    _CatalogService_GetServiceVersions_Handler,
-		},
-		{
-			MethodName: "HealthCheck",
-			Handler:    _CatalogService_HealthCheck_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -30,13 +30,6 @@ service CatalogService {
       get: "/v1/services/{service_id}/versions"
     };
   }
-
-  // HealthCheck returns the health status of the service
-  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {
-    option (google.api.http) = {
-      get: "/v1/health"
-    };
-  }
 }
 
 // Represents a service in the organization catalog
@@ -104,13 +97,4 @@ message GetServiceVersionsResponse {
   repeated ServiceVersion versions = 1;
 }
 
-// Request for health check
-message HealthCheckRequest {
-  // Empty request for health check
-}
 
-// Response for health check
-message HealthCheckResponse {
-  string status = 1;
-  google.protobuf.Timestamp timestamp = 2;
-}
