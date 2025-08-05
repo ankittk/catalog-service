@@ -16,6 +16,10 @@ build:
 run:
 	go run $(CMD_MAIN)
 
+# Run the application with authentication enabled
+run-auth:
+	ENABLE_AUTH=true JWT_SECRET_KEY=my-secret-key go run $(CMD_MAIN)
+
 # Clean build artifacts
 clean:
 	rm -rf bin/
@@ -29,14 +33,32 @@ deps:
 	go mod download
 	go mod tidy
 
-# Health check
+# Health check without authentication
 health:
 	curl -s http://localhost:8000/health | jq .
 
-# test api
+# Test API with a custom script
 test-api:
-	bash $(TEST_API_SCRIPT)
+	@echo "Generating JWT token..."
+	@TOKEN=$$(curl -s -X POST http://localhost:8000/auth/login \
+		-H "Content-Type: application/json" \
+		-d '{"email":"admin@org1.com","password":"admin123","organization":"org-1"}' \
+		| jq -r '.token'); \
+	if [ -z "$$TOKEN" ]; then \
+		echo "Error: Failed to generate JWT token. Ensure that the server is running with ENABLE_AUTH=true and JWT_SECRET_KEY set."; \
+		exit 1; \
+	else \
+		echo "Testing API with JWT token..."; \
+		bash $(TEST_API_SCRIPT) "$$TOKEN"; \
+	fi
 
 # Serve protobuf-generated swagger (more complete API docs)
 swagger:
 	npx redoc-cli serve ./docs/v1/catalog.swagger.json --port 8080
+
+# Generate JWT token by calling the login endpoint
+jwt-token:
+	curl -s -X POST http://localhost:8000/auth/login \
+		-H "Content-Type: application/json" \
+		-d '{"email":"admin@org1.com","password":"admin123","organization":"org-1"}' \
+		| jq -r '.token'

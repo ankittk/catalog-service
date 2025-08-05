@@ -17,6 +17,8 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	grpcserver "github.com/ankittk/catalog-service/internal/api/grpc"
+	"github.com/ankittk/catalog-service/internal/auth"
+	authhandler "github.com/ankittk/catalog-service/internal/auth"
 	"github.com/ankittk/catalog-service/internal/config"
 	"github.com/ankittk/catalog-service/internal/logger"
 	v1 "github.com/ankittk/catalog-service/proto/v1"
@@ -29,15 +31,27 @@ type App struct {
 	httpServer *http.Server
 	grpcAddr   string
 	httpAddr   string
+	jwtManager *auth.JWTManager
 }
 
 // NewApp creates a new application instance
 func NewApp(cfg *config.Config) *App {
-	return &App{
+	app := &App{
 		config:   cfg,
 		grpcAddr: fmt.Sprintf(":%s", cfg.GRPCPort),
 		httpAddr: fmt.Sprintf(":%s", cfg.HTTPPort),
 	}
+
+	// Initialize JWT manager if authentication is enabled
+	if cfg.EnableAuth {
+		app.jwtManager = auth.NewJWTManager(cfg.JWTSecretKey, cfg.JWTTokenDuration)
+		logger.Get().Infow("JWT authentication enabled",
+			"token_duration", cfg.JWTTokenDuration.String())
+	} else {
+		logger.Get().Info("JWT authentication disabled")
+	}
+
+	return app
 }
 
 // Start initializes and starts the application
@@ -45,7 +59,8 @@ func (a *App) Start() error {
 	logger.Get().Infow("Starting catalog service",
 		"grpc_port", a.config.GRPCPort,
 		"http_port", a.config.HTTPPort,
-		"data_file", a.config.LocalDataStorage)
+		"data_file", a.config.LocalDataStorage,
+		"auth_enabled", a.config.EnableAuth)
 
 	// Initialize gRPC server
 	if err := a.initGRPCServer(); err != nil {
@@ -67,8 +82,14 @@ func (a *App) Start() error {
 
 // initGRPCServer initializes the gRPC server
 func (a *App) initGRPCServer() error {
-	// Create gRPC server
-	a.grpcServer = grpc.NewServer()
+	// Create gRPC server with authentication interceptor if enabled
+	var opts []grpc.ServerOption
+	if a.config.EnableAuth && a.jwtManager != nil {
+		opts = append(opts, grpc.UnaryInterceptor(a.jwtManager.GRPCUnaryInterceptor()))
+		logger.Get().Info("gRPC server configured with JWT authentication")
+	}
+
+	a.grpcServer = grpc.NewServer(opts...)
 
 	// Get absolute path to data file
 	localDataStorage, err := a.config.GetDataFileAbsPath()
@@ -131,13 +152,33 @@ func (a *App) createHTTPHandler() http.Handler {
 	// CORS middleware
 	corsMiddleware := a.createCORSMiddleware()
 
-	// API routes with CORS
+	// Authentication middleware
+	var authMiddleware func(http.Handler) http.Handler
+	if a.config.EnableAuth && a.jwtManager != nil {
+		authMiddleware = a.jwtManager.HTTPMiddleware
+		logger.Get().Info("HTTP server configured with JWT authentication")
+	} else {
+		authMiddleware = func(next http.Handler) http.Handler {
+			return next
+		}
+	}
+
+	// Authentication endpoints (no auth required)
+	if a.config.EnableAuth && a.jwtManager != nil {
+		authHandler := authhandler.NewAuthHandler(a.jwtManager)
+		mux.HandleFunc("/auth/login", func(w http.ResponseWriter, r *http.Request) {
+			corsMiddleware(w, r)
+			authHandler.Login(w, r)
+		})
+	}
+
+	// API routes with authentication and CORS
 	mux.HandleFunc("/v1/", func(w http.ResponseWriter, r *http.Request) {
 		corsMiddleware(w, r)
-		gwmux.ServeHTTP(w, r)
+		authMiddleware(gwmux).ServeHTTP(w, r)
 	})
 
-	// Health check endpoint
+	// Health check endpoint (no auth required)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		corsMiddleware(w, r)
 		if r.Method == "OPTIONS" {
@@ -146,19 +187,21 @@ func (a *App) createHTTPHandler() http.Handler {
 
 		// Return service health information
 		healthResponse := map[string]interface{}{
-			"status":    "healthy",
-			"service":   "catalog-service",
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
-			"version":   "1.0.0",
+			"status":       "healthy",
+			"service":      "catalog-service",
+			"timestamp":    time.Now().UTC().Format(time.RFC3339),
+			"version":      "1.0.0",
+			"auth_enabled": a.config.EnableAuth,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status":"%s","service":"%s","timestamp":"%s","version":"%s"}`,
+		fmt.Fprintf(w, `{"status":"%s","service":"%s","timestamp":"%s","version":"%s","auth_enabled":%t}`,
 			healthResponse["status"],
 			healthResponse["service"],
 			healthResponse["timestamp"],
-			healthResponse["version"])
+			healthResponse["version"],
+			healthResponse["auth_enabled"])
 	})
 
 	return mux
