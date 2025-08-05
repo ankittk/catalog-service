@@ -120,14 +120,22 @@ func (a *App) createHTTPHandler() http.Handler {
 		return mux
 	}
 
+	// CORS headers setup if needed for the frontend
+	mux.HandleFunc("/v1/", func(w http.ResponseWriter, r *http.Request) {
+		// Handle CORS if needed
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		// Serve the gRPC Gateway handler
+		gwmux.ServeHTTP(w, r)
+	})
+
 	// Add health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"healthy"}`))
 	})
-
-	// Mount gRPC gateway at /v1
-	mux.Handle("/v1/", http.StripPrefix("/v1", gwmux))
 
 	return mux
 }
