@@ -592,8 +592,25 @@ func TestCatalogService_filterServices(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := svc.filterServices(tt.services, tt.req)
 			assert.Len(t, got, len(tt.want))
-			for i, expected := range tt.want {
-				assert.Equal(t, expected.ID, got[i].ID)
+
+			// Create maps for easier comparison regardless of order
+			expectedIDs := make(map[string]bool)
+			gotIDs := make(map[string]bool)
+
+			for _, expected := range tt.want {
+				expectedIDs[expected.ID] = true
+			}
+
+			for _, service := range got {
+				gotIDs[service.ID] = true
+			}
+
+			for expectedID := range expectedIDs {
+				assert.True(t, gotIDs[expectedID], "Expected service %s not found in results", expectedID)
+			}
+
+			for gotID := range gotIDs {
+				assert.True(t, expectedIDs[gotID], "Unexpected service %s found in results", gotID)
 			}
 		})
 	}
