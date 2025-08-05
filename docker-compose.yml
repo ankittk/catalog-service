@@ -8,15 +8,15 @@ services:
       - "8000:8000"
       - "9000:9000"
     environment:
-      - ENVIRONMENT=development
-      - LOG_LEVEL=info
-      - GRPC_PORT=9000
-      - HTTP_PORT=8000
-      - LOCAL_DATA_STORAGE=data/services.yaml
-      - CORS_ORIGINS=*
-      - ENABLE_AUTH=true
-      - JWT_SECRET_KEY=my-secret-key
-      - JWT_TOKEN_DURATION=24h
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - GRPC_PORT=${GRPC_PORT:-9000}
+      - HTTP_PORT=${HTTP_PORT:-8000}
+      - LOCAL_DATA_STORAGE=${LOCAL_DATA_STORAGE:-data/services.yaml}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - ENABLE_AUTH=${ENABLE_AUTH:-true}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_TOKEN_DURATION=${JWT_TOKEN_DURATION:-24h}
     volumes:
       - ./data:/app/data:ro
     restart: unless-stopped

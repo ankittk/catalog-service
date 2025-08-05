@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -38,6 +40,11 @@ type Config struct {
 
 // Load reads environment variables and returns the Config
 func Load() (*Config, error) {
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		fmt.Printf("Note: .env file not found, using system environment variables: %v\n", err)
+	}
+
 	cfg := &Config{
 		GRPCPort:         getEnv("GRPC_PORT", "9000"),
 		HTTPPort:         getEnv("HTTP_PORT", "8000"),
@@ -85,6 +92,9 @@ func (c *Config) Validate() error {
 	if c.EnableAuth {
 		if c.JWTSecretKey == "" {
 			return fmt.Errorf("JWT_SECRET_KEY is required when ENABLE_AUTH is true")
+		}
+		if len(c.JWTSecretKey) < 32 {
+			return fmt.Errorf("JWT_SECRET_KEY must be at least 32 characters long for security")
 		}
 		if c.JWTTokenDuration <= 0 {
 			return fmt.Errorf("JWT_TOKEN_DURATION must be positive")

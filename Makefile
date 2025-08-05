@@ -77,6 +77,10 @@ compose-up:
 compose-down:
 	docker-compose down
 
+# Generate a secure JWT secret key
+generate-jwt-secret:
+	@openssl rand -base64 32 | tr -d '\n' && echo
+
 # Clean Docker artifacts
 docker-clean:
 	docker system prune -f
