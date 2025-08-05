@@ -13,15 +13,24 @@ import (
 )
 
 func mockTestData() map[string]*model.Service {
-	now := time.Now()
+	// Parse the actual timestamps from services.yaml
+	createdAt1, _ := time.Parse(time.RFC3339, "2024-05-01T10:00:00Z")
+	updatedAt1, _ := time.Parse(time.RFC3339, "2025-08-01T09:00:00Z")
+	createdAt2, _ := time.Parse(time.RFC3339, "2023-12-15T08:00:00Z")
+	updatedAt2, _ := time.Parse(time.RFC3339, "2025-08-01T08:00:00Z")
+	createdAt3, _ := time.Parse(time.RFC3339, "2022-11-01T12:00:00Z")
+	updatedAt3, _ := time.Parse(time.RFC3339, "2025-07-31T12:00:00Z")
+	createdAt4, _ := time.Parse(time.RFC3339, "2024-01-10T14:00:00Z")
+	updatedAt4, _ := time.Parse(time.RFC3339, "2025-07-01T14:00:00Z")
+
 	service1 := &model.Service{
 		ID:             "svc-1",
 		Name:           "User Service",
 		Description:    "Handles user authentication and profile management",
 		OrganizationID: "org-1",
 		URL:            "https://services.example.com/user",
-		CreatedAt:      now.Add(-24 * time.Hour),
-		UpdatedAt:      now,
+		CreatedAt:      createdAt1,
+		UpdatedAt:      updatedAt1,
 		Versions: []*model.ServiceVersion{
 			{
 				ID:          "v1",
@@ -29,8 +38,8 @@ func mockTestData() map[string]*model.Service {
 				ServiceID:   "svc-1",
 				Description: "Initial stable release",
 				IsActive:    false,
-				CreatedAt:   now.Add(-48 * time.Hour),
-				UpdatedAt:   now.Add(-24 * time.Hour),
+				CreatedAt:   time.Date(2024, 5, 1, 10, 0, 0, 0, time.UTC),
+				UpdatedAt:   time.Date(2024, 6, 1, 10, 0, 0, 0, time.UTC),
 			},
 			{
 				ID:          "v2",
@@ -38,8 +47,8 @@ func mockTestData() map[string]*model.Service {
 				ServiceID:   "svc-1",
 				Description: "Added OAuth support",
 				IsActive:    true,
-				CreatedAt:   now.Add(-12 * time.Hour),
-				UpdatedAt:   now,
+				CreatedAt:   time.Date(2024, 7, 1, 10, 0, 0, 0, time.UTC),
+				UpdatedAt:   updatedAt1,
 			},
 		},
 	}
@@ -50,8 +59,8 @@ func mockTestData() map[string]*model.Service {
 		Description:    "Facilitates payments and transaction management",
 		OrganizationID: "org-2",
 		URL:            "https://services.example.com/payment",
-		CreatedAt:      now.Add(-12 * time.Hour),
-		UpdatedAt:      now.Add(-6 * time.Hour),
+		CreatedAt:      createdAt2,
+		UpdatedAt:      updatedAt2,
 		Versions: []*model.ServiceVersion{
 			{
 				ID:          "v1",
@@ -59,29 +68,68 @@ func mockTestData() map[string]*model.Service {
 				ServiceID:   "svc-2",
 				Description: "Supports Stripe and Razorpay",
 				IsActive:    true,
-				CreatedAt:   now.Add(-12 * time.Hour),
-				UpdatedAt:   now.Add(-6 * time.Hour),
+				CreatedAt:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				UpdatedAt:   time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC),
 			},
 		},
 	}
 
 	service3 := &model.Service{
 		ID:             "svc-3",
+		Name:           "Inventory Service",
+		Description:    "Tracks product availability and stock levels",
+		OrganizationID: "org-1",
+		URL:            "https://services.example.com/inventory",
+		CreatedAt:      createdAt3,
+		UpdatedAt:      updatedAt3,
+		Versions: []*model.ServiceVersion{
+			{
+				ID:          "v1",
+				Version:     "v1.0.0",
+				ServiceID:   "svc-3",
+				Description: "Initial version",
+				IsActive:    false,
+				CreatedAt:   createdAt3,
+				UpdatedAt:   time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC),
+			},
+			{
+				ID:          "v2",
+				Version:     "v2.0.0",
+				ServiceID:   "svc-3",
+				Description: "Optimized warehouse sync",
+				IsActive:    true,
+				CreatedAt:   time.Date(2024, 3, 1, 12, 0, 0, 0, time.UTC),
+				UpdatedAt:   updatedAt3,
+			},
+		},
+	}
+
+	service4 := &model.Service{
+		ID:             "svc-4",
 		Name:           "Analytics Service",
 		Description:    "Generates usage and engagement reports",
-		OrganizationID: "org-1",
+		OrganizationID: "org-3",
 		URL:            "https://services.example.com/analytics",
-		CreatedAt:      now.Add(-6 * time.Hour),
-		UpdatedAt:      now.Add(-1 * time.Hour),
+		CreatedAt:      createdAt4,
+		UpdatedAt:      updatedAt4,
 		Versions: []*model.ServiceVersion{
 			{
 				ID:          "v1",
 				Version:     "v0.1.0",
-				ServiceID:   "svc-3",
+				ServiceID:   "svc-4",
 				Description: "Beta release",
 				IsActive:    false,
-				CreatedAt:   now.Add(-6 * time.Hour),
-				UpdatedAt:   now.Add(-3 * time.Hour),
+				CreatedAt:   createdAt4,
+				UpdatedAt:   time.Date(2024, 3, 10, 14, 0, 0, 0, time.UTC),
+			},
+			{
+				ID:          "v2",
+				Version:     "v1.0.0",
+				ServiceID:   "svc-4",
+				Description: "First stable release",
+				IsActive:    true,
+				CreatedAt:   time.Date(2024, 6, 1, 14, 0, 0, 0, time.UTC),
+				UpdatedAt:   updatedAt4,
 			},
 		},
 	}
@@ -90,6 +138,7 @@ func mockTestData() map[string]*model.Service {
 		"svc-1": service1,
 		"svc-2": service2,
 		"svc-3": service3,
+		"svc-4": service4,
 	}
 }
 
@@ -110,7 +159,7 @@ func TestCatalogService_ListServices(t *testing.T) {
 			want: &v1.ListServicesResponse{
 				Services:      []*v1.Service{},
 				NextPageToken: "",
-				TotalCount:    3,
+				TotalCount:    4,
 			},
 			wantErr: false,
 		},
@@ -122,7 +171,7 @@ func TestCatalogService_ListServices(t *testing.T) {
 			want: &v1.ListServicesResponse{
 				Services:      []*v1.Service{},
 				NextPageToken: "page_2",
-				TotalCount:    3,
+				TotalCount:    4,
 			},
 			wantErr: false,
 		},
@@ -140,6 +189,25 @@ func TestCatalogService_ListServices(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:    "list services with nil request",
+			req:     nil,
+			wantErr: true,
+		},
+		{
+			name: "list services with long search query",
+			req: &v1.ListServicesRequest{
+				SearchQuery: strings.Repeat("a", 101),
+			},
+			wantErr: true,
+		},
+		{
+			name: "list services with invalid organization ID",
+			req: &v1.ListServicesRequest{
+				OrganizationId: "invalid@org",
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -147,8 +215,14 @@ func TestCatalogService_ListServices(t *testing.T) {
 			got, err := svc.ListServices(ctx, tt.req)
 			if tt.wantErr {
 				assert.Error(t, err)
-				if tt.req.PageSize > MaxPageSize {
+				if tt.req != nil && tt.req.PageSize > MaxPageSize {
 					assert.Contains(t, err.Error(), "page_size must be between 0 and 100")
+				} else if tt.req == nil {
+					assert.Contains(t, err.Error(), "request cannot be nil")
+				} else if tt.req.SearchQuery != "" && len(tt.req.SearchQuery) > 100 {
+					assert.Contains(t, err.Error(), "search_query too long")
+				} else if tt.req.OrganizationId != "" && strings.Contains(tt.req.OrganizationId, "@") {
+					assert.Contains(t, err.Error(), "invalid organization_id format")
 				}
 				return
 			}
@@ -203,6 +277,18 @@ func TestCatalogService_GetService(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "get service with invalid ID format",
+			req: &v1.GetServiceRequest{
+				Id: "invalid@id",
+			},
+			wantErr: true,
+		},
+		{
+			name:    "get service with nil request",
+			req:     nil,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -210,10 +296,14 @@ func TestCatalogService_GetService(t *testing.T) {
 			got, err := svc.GetService(ctx, tt.req)
 			if tt.wantErr {
 				assert.Error(t, err)
-				if tt.req.Id == "" {
+				if tt.req == nil {
+					assert.Contains(t, err.Error(), "request cannot be nil")
+				} else if tt.req.Id == "" {
 					assert.Contains(t, err.Error(), "service ID is required")
 				} else if tt.req.Id == "non-existent" {
 					assert.Contains(t, err.Error(), "service not found")
+				} else if strings.Contains(tt.req.Id, "@") {
+					assert.Contains(t, err.Error(), "invalid service ID format")
 				}
 				return
 			}
@@ -261,6 +351,18 @@ func TestCatalogService_GetServiceVersions(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "get versions with invalid service ID format",
+			req: &v1.GetServiceVersionsRequest{
+				ServiceId: "invalid@id",
+			},
+			wantErr: true,
+		},
+		{
+			name:    "get versions with nil request",
+			req:     nil,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -268,10 +370,14 @@ func TestCatalogService_GetServiceVersions(t *testing.T) {
 			got, err := svc.GetServiceVersions(ctx, tt.req)
 			if tt.wantErr {
 				assert.Error(t, err)
-				if tt.req.ServiceId == "" {
+				if tt.req == nil {
+					assert.Contains(t, err.Error(), "request cannot be nil")
+				} else if tt.req.ServiceId == "" {
 					assert.Contains(t, err.Error(), "service ID is required")
 				} else if tt.req.ServiceId == "non-existent" {
 					assert.Contains(t, err.Error(), "service not found")
+				} else if strings.Contains(tt.req.ServiceId, "@") {
+					assert.Contains(t, err.Error(), "invalid service ID format")
 				}
 				return
 			}
@@ -312,6 +418,21 @@ func TestCatalogService_validateListServicesRequest(t *testing.T) {
 			req:     &v1.ListServicesRequest{PageSize: 0},
 			wantErr: false,
 		},
+		{
+			name:    "nil request",
+			req:     nil,
+			wantErr: true,
+		},
+		{
+			name:    "long search query",
+			req:     &v1.ListServicesRequest{SearchQuery: strings.Repeat("a", 101)},
+			wantErr: true,
+		},
+		{
+			name:    "invalid organization ID",
+			req:     &v1.ListServicesRequest{OrganizationId: "invalid@org"},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -319,7 +440,15 @@ func TestCatalogService_validateListServicesRequest(t *testing.T) {
 			err := svc.validateListServicesRequest(tt.req)
 			if tt.wantErr {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "page_size must be between 0 and 100")
+				if tt.req != nil && tt.req.PageSize > MaxPageSize {
+					assert.Contains(t, err.Error(), "page_size must be between 0 and 100")
+				} else if tt.req == nil {
+					assert.Contains(t, err.Error(), "request cannot be nil")
+				} else if tt.req.SearchQuery != "" && len(tt.req.SearchQuery) > 100 {
+					assert.Contains(t, err.Error(), "search_query too long")
+				} else if tt.req.OrganizationId != "" && strings.Contains(tt.req.OrganizationId, "@") {
+					assert.Contains(t, err.Error(), "invalid organization_id format")
+				}
 			} else {
 				assert.NoError(t, err)
 			}
@@ -345,6 +474,16 @@ func TestCatalogService_validateGetServiceRequest(t *testing.T) {
 			req:     &v1.GetServiceRequest{Id: ""},
 			wantErr: true,
 		},
+		{
+			name:    "nil request",
+			req:     nil,
+			wantErr: true,
+		},
+		{
+			name:    "invalid ID format",
+			req:     &v1.GetServiceRequest{Id: "invalid@id"},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -352,7 +491,13 @@ func TestCatalogService_validateGetServiceRequest(t *testing.T) {
 			err := svc.validateGetServiceRequest(tt.req)
 			if tt.wantErr {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "service ID is required")
+				if tt.req == nil {
+					assert.Contains(t, err.Error(), "request cannot be nil")
+				} else if tt.req.Id == "" {
+					assert.Contains(t, err.Error(), "service ID is required")
+				} else if strings.Contains(tt.req.Id, "@") {
+					assert.Contains(t, err.Error(), "invalid service ID format")
+				}
 			} else {
 				assert.NoError(t, err)
 			}
@@ -378,6 +523,16 @@ func TestCatalogService_validateGetServiceVersionsRequest(t *testing.T) {
 			req:     &v1.GetServiceVersionsRequest{ServiceId: ""},
 			wantErr: true,
 		},
+		{
+			name:    "nil request",
+			req:     nil,
+			wantErr: true,
+		},
+		{
+			name:    "invalid service ID format",
+			req:     &v1.GetServiceVersionsRequest{ServiceId: "invalid@id"},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -385,10 +540,44 @@ func TestCatalogService_validateGetServiceVersionsRequest(t *testing.T) {
 			err := svc.validateGetServiceVersionsRequest(tt.req)
 			if tt.wantErr {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "service ID is required")
+				if tt.req == nil {
+					assert.Contains(t, err.Error(), "request cannot be nil")
+				} else if tt.req.ServiceId == "" {
+					assert.Contains(t, err.Error(), "service ID is required")
+				} else if strings.Contains(tt.req.ServiceId, "@") {
+					assert.Contains(t, err.Error(), "invalid service ID format")
+				}
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestCatalogService_isValidID(t *testing.T) {
+	svc := &CatalogService{}
+
+	tests := []struct {
+		name string
+		id   string
+		want bool
+	}{
+		{"valid ID", "svc-1", true},
+		{"valid ID with underscore", "svc_1", true},
+		{"valid ID uppercase", "SVC-1", true},
+		{"valid ID numbers", "svc123", true},
+		{"empty ID", "", false},
+		{"ID with special chars", "svc@1", false},
+		{"ID with spaces", "svc 1", false},
+		{"ID too long", strings.Repeat("a", 51), false},
+		{"ID with dots", "svc.1", false},
+		{"ID with slashes", "svc/1", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := svc.isValidID(tt.id)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -488,7 +677,7 @@ func TestCatalogService_paginateServices(t *testing.T) {
 			want: &v1.ListServicesResponse{
 				Services:      []*v1.Service{},
 				NextPageToken: "page_2",
-				TotalCount:    3,
+				TotalCount:    4,
 			},
 			wantErr: false,
 		},
@@ -500,7 +689,7 @@ func TestCatalogService_paginateServices(t *testing.T) {
 			want: &v1.ListServicesResponse{
 				Services:      []*v1.Service{},
 				NextPageToken: "",
-				TotalCount:    3,
+				TotalCount:    4,
 			},
 			wantErr: false,
 		},
@@ -512,7 +701,7 @@ func TestCatalogService_paginateServices(t *testing.T) {
 			want: &v1.ListServicesResponse{
 				Services:      []*v1.Service{},
 				NextPageToken: "",
-				TotalCount:    3,
+				TotalCount:    4,
 			},
 			wantErr: false,
 		},
@@ -585,6 +774,14 @@ func TestCatalogService_filterServices(t *testing.T) {
 				SearchQuery:    "Service",
 			},
 			want: []*model.Service{testData["svc-1"], testData["svc-3"]},
+		},
+		{
+			name:     "filter with trimmed search query",
+			services: services,
+			req: &v1.ListServicesRequest{
+				SearchQuery: "  User  ",
+			},
+			want: []*model.Service{testData["svc-1"]},
 		},
 	}
 

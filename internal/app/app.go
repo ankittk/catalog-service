@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -41,9 +42,10 @@ func NewApp(cfg *config.Config) *App {
 
 // Start initializes and starts the application
 func (a *App) Start() error {
-	logger.Get().Infow("starting catalog service",
+	logger.Get().Infow("Starting catalog service",
 		"grpc_port", a.config.GRPCPort,
-		"http_port", a.config.HTTPPort)
+		"http_port", a.config.HTTPPort,
+		"data_file", a.config.LocalDataStorage)
 
 	// Initialize gRPC server
 	if err := a.initGRPCServer(); err != nil {
@@ -68,10 +70,16 @@ func (a *App) initGRPCServer() error {
 	// Create gRPC server
 	a.grpcServer = grpc.NewServer()
 
-	// Initialize catalog server
-	yamlData, err := os.ReadFile("data/services.yaml")
+	// Get absolute path to data file
+	localDataStorage, err := a.config.GetDataFileAbsPath()
 	if err != nil {
-		return fmt.Errorf("failed to read services.yaml: %w", err)
+		return fmt.Errorf("failed to resolve data file path: %w", err)
+	}
+
+	// Read YAML data with proper error handling
+	yamlData, err := os.ReadFile(localDataStorage)
+	if err != nil {
+		return fmt.Errorf("failed to read data file %s: %w", localDataStorage, err)
 	}
 
 	catalogServer, err := grpcserver.NewCatalogServerFromYAML(yamlData)
@@ -82,7 +90,7 @@ func (a *App) initGRPCServer() error {
 	// Register services
 	v1.RegisterCatalogServiceServer(a.grpcServer, catalogServer)
 
-	// Enable reflection for development
+	// Enable reflection for development as it is useful for development and debugging
 	if a.config.Environment == "development" {
 		reflection.Register(a.grpcServer)
 	}
@@ -116,28 +124,78 @@ func (a *App) createHTTPHandler() http.Handler {
 		a.grpcAddr,
 		opts,
 	); err != nil {
-		logger.Get().Errorw("failed to register gRPC gateway", "error", err)
+		logger.Get().Errorw("Failed to register gRPC gateway", "error", err)
 		return mux
 	}
 
-	// CORS headers setup if needed for the frontend
-	mux.HandleFunc("/v1/", func(w http.ResponseWriter, r *http.Request) {
-		// Handle CORS if needed
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	// CORS middleware
+	corsMiddleware := a.createCORSMiddleware()
 
-		// Serve the gRPC Gateway handler
+	// API routes with CORS
+	mux.HandleFunc("/v1/", func(w http.ResponseWriter, r *http.Request) {
+		corsMiddleware(w, r)
 		gwmux.ServeHTTP(w, r)
 	})
 
-	// Add health check endpoint
+	// Health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		corsMiddleware(w, r)
+		if r.Method == "OPTIONS" {
+			return
+		}
+
+		// Return service health information
+		healthResponse := map[string]interface{}{
+			"status":    "healthy",
+			"service":   "catalog-service",
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"version":   "1.0.0",
+		}
+
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"healthy"}`))
+		fmt.Fprintf(w, `{"status":"%s","service":"%s","timestamp":"%s","version":"%s"}`,
+			healthResponse["status"],
+			healthResponse["service"],
+			healthResponse["timestamp"],
+			healthResponse["version"])
 	})
 
 	return mux
+}
+
+// createCORSMiddleware creates a CORS middleware function
+func (a *App) createCORSMiddleware() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Parse CORS origins from config
+		origins := strings.Split(a.config.CORSOrigins, ",")
+		origin := r.Header.Get("Origin")
+
+		// Check if origin is allowed
+		allowed := false
+		for _, allowedOrigin := range origins {
+			allowedOrigin = strings.TrimSpace(allowedOrigin)
+			if allowedOrigin == "*" || allowedOrigin == origin {
+				allowed = true
+				break
+			}
+		}
+
+		if allowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin) // Allow the origin
+		}
+
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")               // Allow these methods
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With") // Allow these headers
+		w.Header().Set("Access-Control-Allow-Credentials", "true")                                      // Allow credentials for CORS
+		w.Header().Set("Access-Control-Max-Age", "86400")                                               // 24 hours for CORS
+
+		// Handle preflight requests for CORS
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	}
 }
 
 // startServers starts both gRPC and HTTP servers
@@ -146,12 +204,12 @@ func (a *App) startServers() error {
 	go func() {
 		lis, err := net.Listen("tcp", a.grpcAddr)
 		if err != nil {
-			logger.Get().Fatalw("failed to listen for gRPC", "error", err)
+			logger.Get().Fatalw("Failed to listen for gRPC", "error", err)
 		}
 
 		logger.Get().Infow("gRPC server listening", "address", a.grpcAddr)
 		if err := a.grpcServer.Serve(lis); err != nil {
-			logger.Get().Fatalw("failed to serve gRPC", "error", err)
+			logger.Get().Fatalw("Failed to serve gRPC", "error", err)
 		}
 	}()
 
@@ -159,7 +217,7 @@ func (a *App) startServers() error {
 	go func() {
 		logger.Get().Infow("HTTP server listening", "address", a.httpAddr)
 		if err := a.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Get().Fatalw("failed to serve HTTP", "error", err)
+			logger.Get().Fatalw("Failed to serve HTTP", "error", err)
 		}
 	}()
 
@@ -168,7 +226,7 @@ func (a *App) startServers() error {
 
 // Stop gracefully shuts down the application
 func (a *App) Stop() error {
-	logger.Get().Info("shutting down application...")
+	logger.Get().Info("Shutting down application...")
 
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -177,7 +235,7 @@ func (a *App) Stop() error {
 	// Stop HTTP server
 	if a.httpServer != nil {
 		if err := a.httpServer.Shutdown(ctx); err != nil {
-			logger.Get().Errorw("failed to shutdown HTTP server", "error", err)
+			logger.Get().Errorw("Failed to shutdown HTTP server", "error", err)
 		}
 	}
 
@@ -186,7 +244,7 @@ func (a *App) Stop() error {
 		a.grpcServer.GracefulStop()
 	}
 
-	logger.Get().Info("application stopped")
+	logger.Get().Info("Application stopped")
 	return nil
 }
 
@@ -197,8 +255,8 @@ func (a *App) WaitForShutdown() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Get().Info("received shutdown signal")
+	logger.Get().Info("Received shutdown signal")
 	if err := a.Stop(); err != nil {
-		logger.Get().Errorw("error during shutdown", "error", err)
+		logger.Get().Errorw("Error during shutdown", "error", err)
 	}
 }

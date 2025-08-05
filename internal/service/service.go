@@ -18,8 +18,10 @@ import (
 )
 
 var (
-	ErrServiceNotFound = errors.New("service not found")
-	ErrInvalidRequest  = errors.New("invalid request")
+	ErrServiceNotFound     = errors.New("service not found")
+	ErrInvalidRequest      = errors.New("invalid request")
+	ErrInvalidPageToken    = errors.New("invalid page token")
+	ErrPageTokenOutOfRange = errors.New("page token out of range")
 )
 
 const (
@@ -61,6 +63,11 @@ func (c *CatalogService) ListServices(ctx context.Context, req *v1.ListServicesR
 		"sort_by", req.GetSortBy(),
 		"sort_order", req.GetSortOrder())
 
+	// Check context cancellation
+	if ctx.Err() != nil {
+		return nil, status.Error(codes.Canceled, "request cancelled")
+	}
+
 	// validate request parameters
 	if err := c.validateListServicesRequest(req); err != nil {
 		return nil, err
@@ -91,6 +98,11 @@ func (c *CatalogService) ListServices(ctx context.Context, req *v1.ListServicesR
 func (c *CatalogService) GetService(ctx context.Context, req *v1.GetServiceRequest) (*v1.GetServiceResponse, error) {
 	logger.Get().Infow("GetService called", "service_id", req.GetId())
 
+	// Check context cancellation
+	if ctx.Err() != nil {
+		return nil, status.Error(codes.Canceled, "request cancelled")
+	}
+
 	// validate request parameters
 	if err := c.validateGetServiceRequest(req); err != nil {
 		return nil, err
@@ -109,6 +121,11 @@ func (c *CatalogService) GetService(ctx context.Context, req *v1.GetServiceReque
 // GetServiceVersions returns all versions of a specific service
 func (c *CatalogService) GetServiceVersions(ctx context.Context, req *v1.GetServiceVersionsRequest) (*v1.GetServiceVersionsResponse, error) {
 	logger.Get().Infow("GetServiceVersions called", "service_id", req.GetServiceId())
+
+	// Check context cancellation
+	if ctx.Err() != nil {
+		return nil, status.Error(codes.Canceled, "request cancelled")
+	}
 
 	// validate request parameters
 	if err := c.validateGetServiceVersionsRequest(req); err != nil {
@@ -132,26 +149,79 @@ func (c *CatalogService) GetServiceVersions(ctx context.Context, req *v1.GetServ
 
 // validateListServicesRequest checks the validity of the ListServicesRequest parameters
 func (c *CatalogService) validateListServicesRequest(req *v1.ListServicesRequest) error {
+	if req == nil {
+		return status.Errorf(codes.InvalidArgument, "%v: request cannot be nil", ErrInvalidRequest)
+	}
+
 	if req.GetPageSize() < 0 || req.GetPageSize() > MaxPageSize {
 		return status.Errorf(codes.InvalidArgument, "%v: page_size must be between 0 and %d, got %d", ErrInvalidRequest, MaxPageSize, req.GetPageSize())
 	}
+
+	// Validate search query length
+	if req.GetSearchQuery() != "" && len(req.GetSearchQuery()) > 100 {
+		return status.Errorf(codes.InvalidArgument, "%v: search_query too long, max 100 characters", ErrInvalidRequest)
+	}
+
+	// Validate organization ID format if provided
+	if req.GetOrganizationId() != "" && !c.isValidID(req.GetOrganizationId()) {
+		return status.Errorf(codes.InvalidArgument, "%v: invalid organization_id format", ErrInvalidRequest)
+	}
+
 	return nil
 }
 
 // validateGetServiceRequest checks the validity of the GetServiceRequest parameters
 func (c *CatalogService) validateGetServiceRequest(req *v1.GetServiceRequest) error {
+	if req == nil {
+		return status.Errorf(codes.InvalidArgument, "%v: request cannot be nil", ErrInvalidRequest)
+	}
+
 	if req.GetId() == "" {
 		return status.Errorf(codes.InvalidArgument, "%v: service ID is required", ErrInvalidRequest)
 	}
+
+	if !c.isValidID(req.GetId()) {
+		return status.Errorf(codes.InvalidArgument, "%v: invalid service ID format", ErrInvalidRequest)
+	}
+
 	return nil
 }
 
 // validateGetServiceVersionsRequest checks the validity of the GetServiceVersionsRequest parameters
 func (c *CatalogService) validateGetServiceVersionsRequest(req *v1.GetServiceVersionsRequest) error {
+	if req == nil {
+		return status.Errorf(codes.InvalidArgument, "%v: request cannot be nil", ErrInvalidRequest)
+	}
+
 	if req.GetServiceId() == "" {
 		return status.Errorf(codes.InvalidArgument, "%v: service ID is required", ErrInvalidRequest)
 	}
+
+	if !c.isValidID(req.GetServiceId()) {
+		return status.Errorf(codes.InvalidArgument, "%v: invalid service ID format", ErrInvalidRequest)
+	}
+
 	return nil
+}
+
+// isValidID validates ID format (basic validation)
+func (c *CatalogService) isValidID(id string) bool {
+	if id == "" {
+		return false
+	}
+	// Basic validation: alphanumeric, hyphens, underscores, max 50 chars
+	if len(id) > 50 {
+		return false
+	}
+	for _, char := range id {
+		if !((char >= 'a' && char <= 'z') ||
+			(char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') ||
+			char == '-' || char == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 // getAllServices retrieves all services from the local data store
@@ -254,7 +324,7 @@ func (c *CatalogService) filterServices(services []*model.Service, req *v1.ListS
 
 		// filter by search query if specified
 		if req.GetSearchQuery() != "" {
-			query := strings.ToLower(req.GetSearchQuery())
+			query := strings.ToLower(strings.TrimSpace(req.GetSearchQuery()))
 			name := strings.ToLower(s.Name)
 			description := strings.ToLower(s.Description)
 

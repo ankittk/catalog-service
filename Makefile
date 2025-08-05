@@ -1,6 +1,6 @@
 PROTO_DIR=proto
 CMD_MAIN=./cmd/server/main.go
-TEST_API_SCRIPT=./test_api.sh
+TEST_API_SCRIPT=./script/test_api.sh
 
 .PHONY: generate run build clean test
 

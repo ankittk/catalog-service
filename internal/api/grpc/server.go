@@ -19,7 +19,8 @@ import (
 type Server struct {
 	// Embed the unimplemented server to ensure forward compatibility
 	v1.UnimplementedCatalogServiceServer
-	svc *service.CatalogService
+	svc     *service.CatalogService
+	metrics *logger.MetricsLogger
 }
 
 // NewCatalogServerFromYAML creates a new server by parsing YAML data
@@ -39,87 +40,189 @@ func NewCatalogServerFromYAML(yamlData []byte) (*Server, error) {
 
 	logger.Get().Infow("Catalog server initialized successfully", "services_count", len(sf.Services))
 
-	return &Server{svc: catalogService}, nil
+	return &Server{
+		svc:     catalogService,
+		metrics: logger.NewMetricsLogger(),
+	}, nil
 }
 
 // ListServices returns a list of all services
 func (s *Server) ListServices(ctx context.Context, req *v1.ListServicesRequest) (*v1.ListServicesResponse, error) {
-	logger.Get().Infow("ListServices request received",
-		"page_size", req.GetPageSize(),
-		"page_token", req.GetPageToken(),
-		"organization_id", req.GetOrganizationId(),
-		"search_query", req.GetSearchQuery(),
-		"sort_by", req.GetSortBy(),
-		"sort_order", req.GetSortOrder())
+	// Create request logger for structured logging
+	reqLogger := logger.NewRequestLogger("ListServices", "/v1/services")
+	reqLogger.AddField("page_size", req.GetPageSize())
+	reqLogger.AddField("page_token", req.GetPageToken())
+	reqLogger.AddField("organization_id", req.GetOrganizationId())
+	reqLogger.AddField("search_query", req.GetSearchQuery())
+	reqLogger.AddField("sort_by", req.GetSortBy())
+	reqLogger.AddField("sort_order", req.GetSortOrder())
+
+	reqLogger.LogRequest()
 
 	// Check if context is cancelled
 	if ctx.Err() != nil {
-		logger.Get().Warnw("ListServices context cancelled", "error", ctx.Err())
+		reqLogger.LogResponse(int(codes.Canceled), ctx.Err())
+		s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
+			"method": "ListServices",
+			"status": "cancelled",
+		})
 		return nil, status.Error(codes.Canceled, "request cancelled")
 	}
 
 	resp, err := s.svc.ListServices(ctx, req)
+
+	// Return appropriate status code based on error
+	statusCode := codes.OK
 	if err != nil {
-		logger.Get().Errorw("ListServices failed", "error", err)
-		return nil, err // return the error as-is since service layer already sets proper gRPC status
+		if st, ok := status.FromError(err); ok {
+			statusCode = st.Code()
+		} else {
+			statusCode = codes.Internal
+		}
 	}
 
-	logger.Get().Infow("ListServices completed successfully",
-		"returned_count", len(resp.GetServices()),
-		"total_count", resp.GetTotalCount(),
-		"has_next_page", resp.GetNextPageToken() != "")
+	reqLogger.LogResponse(int(statusCode), err)
 
-	return resp, nil
+	// Log metrics for request count
+	s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
+		"method": "ListServices",
+		"status": statusCode.String(),
+	})
+
+	if err == nil {
+		s.metrics.LogHistogram("grpc_response_size", float64(len(resp.GetServices())), map[string]string{
+			"method": "ListServices",
+		})
+	}
+
+	return resp, err
 }
 
 // GetService returns a specific service by ID
 func (s *Server) GetService(ctx context.Context, req *v1.GetServiceRequest) (*v1.GetServiceResponse, error) {
-	logger.Get().Infow("GetService request received", "service_id", req.GetId())
+	// Create request logger for structured logging
+	reqLogger := logger.NewRequestLogger("GetService", "/v1/services/{id}")
+	reqLogger.AddField("service_id", req.GetId())
+
+	reqLogger.LogRequest()
 
 	// Check if context is cancelled
 	if ctx.Err() != nil {
-		logger.Get().Warnw("GetService context cancelled", "error", ctx.Err())
+		reqLogger.LogResponse(int(codes.Canceled), ctx.Err())
+		s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
+			"method": "GetService",
+			"status": "cancelled",
+		})
 		return nil, status.Error(codes.Canceled, "request cancelled")
 	}
 
 	resp, err := s.svc.GetService(ctx, req)
+
+	statusCode := codes.OK
 	if err != nil {
-		logger.Get().Errorw("GetService failed", "service_id", req.GetId(), "error", err)
-		return nil, err
+		if st, ok := status.FromError(err); ok {
+			statusCode = st.Code()
+		} else {
+			statusCode = codes.Internal
+		}
 	}
 
-	logger.Get().Infow("GetService completed successfully", "service_id", req.GetId())
-	return resp, nil
+	reqLogger.LogResponse(int(statusCode), err)
+
+	s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
+		"method": "GetService",
+		"status": statusCode.String(),
+	})
+
+	return resp, err
 }
 
 // GetServiceVersions returns all versions of a specific service
 func (s *Server) GetServiceVersions(ctx context.Context, req *v1.GetServiceVersionsRequest) (*v1.GetServiceVersionsResponse, error) {
-	logger.Get().Infow("GetServiceVersions request received", "service_id", req.GetServiceId())
+	// Create request logger for structured logging
+	reqLogger := logger.NewRequestLogger("GetServiceVersions", "/v1/services/{id}/versions")
+	reqLogger.AddField("service_id", req.GetServiceId())
+
+	reqLogger.LogRequest()
 
 	// Check if context is cancelled
 	if ctx.Err() != nil {
-		logger.Get().Warnw("GetServiceVersions context cancelled", "error", ctx.Err())
+		reqLogger.LogResponse(int(codes.Canceled), ctx.Err())
+		s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
+			"method": "GetServiceVersions",
+			"status": "cancelled",
+		})
 		return nil, status.Error(codes.Canceled, "request cancelled")
 	}
 
 	resp, err := s.svc.GetServiceVersions(ctx, req)
+
+	statusCode := codes.OK
 	if err != nil {
-		logger.Get().Errorw("GetServiceVersions failed", "service_id", req.GetServiceId(), "error", err)
-		return nil, err
+		if st, ok := status.FromError(err); ok {
+			statusCode = st.Code()
+		} else {
+			statusCode = codes.Internal
+		}
 	}
 
-	logger.Get().Infow("GetServiceVersions completed successfully",
-		"service_id", req.GetServiceId(),
-		"versions_count", len(resp.GetVersions()))
+	reqLogger.LogResponse(int(statusCode), err)
 
-	return resp, nil
+	s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
+		"method": "GetServiceVersions",
+		"status": statusCode.String(),
+	})
+
+	if err == nil {
+		s.metrics.LogHistogram("grpc_response_size", float64(len(resp.GetVersions())), map[string]string{
+			"method": "GetServiceVersions",
+		})
+	}
+
+	return resp, err
 }
 
 // HealthCheck returns the health status of the service
 func (s *Server) HealthCheck(ctx context.Context, req *v1.HealthCheckRequest) (*v1.HealthCheckResponse, error) {
-	logger.Get().Debug("HealthCheck request received")
+	// Create request logger for structured logging
+	reqLogger := logger.NewRequestLogger("HealthCheck", "/v1/health")
+	reqLogger.LogRequest()
+
+	// Check if context is cancelled
+	if ctx.Err() != nil {
+		reqLogger.LogResponse(int(codes.Canceled), ctx.Err())
+		s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
+			"method": "HealthCheck",
+			"status": "cancelled",
+		})
+		return nil, status.Error(codes.Canceled, "request cancelled")
+	}
+
+	// Perform basic health checks
+	healthStatus := "OK"
+
+	// Check if service data is available
+	if s.svc == nil {
+		healthStatus = "ERROR"
+		reqLogger.LogResponse(int(codes.Internal), fmt.Errorf("service data not available"))
+		s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
+			"method": "HealthCheck",
+			"status": "error",
+		})
+		return &v1.HealthCheckResponse{
+			Status:    healthStatus,
+			Timestamp: timestamppb.Now(),
+		}, nil
+	}
+
+	reqLogger.LogResponse(int(codes.OK), nil)
+	s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
+		"method": "HealthCheck",
+		"status": "ok",
+	})
+
 	return &v1.HealthCheckResponse{
-		Status:    "OK",
+		Status:    healthStatus,
 		Timestamp: timestamppb.Now(),
 	}, nil
 }
