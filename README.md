@@ -76,7 +76,13 @@ graph TD
    make generate
    ```
 
-4. Run the service locally if you have everything set up:
+4. Set up environment variables:
+   ```bash
+   cp env.example .env
+   # Edit .env file and update JWT_SECRET_KEY
+   ```
+
+5. Run the service locally if you have everything set up:
    ```bash
    make run
    ```
@@ -234,3 +240,15 @@ make compose-up
 # Stop services
 make compose-down
 ```
+
+
+## Future Improvements
+
+1. HardCoded Demo Creds in Code
+2. In memory Data Storage
+3. No Rate Limiting
+4. Adding Tracing and Observality
+5. Adding Database for consistent storage
+6. Add better default environment
+7. TLS/HTTPS configuration
+8. Better Cors configuration and many more ...
