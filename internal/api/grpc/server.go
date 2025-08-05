@@ -6,7 +6,6 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/yaml.v3"
 
 	"github.com/ankittk/catalog-service/internal/logger"
@@ -180,49 +179,4 @@ func (s *Server) GetServiceVersions(ctx context.Context, req *v1.GetServiceVersi
 	}
 
 	return resp, err
-}
-
-// HealthCheck returns the health status of the service
-func (s *Server) HealthCheck(ctx context.Context, req *v1.HealthCheckRequest) (*v1.HealthCheckResponse, error) {
-	// Create request logger for structured logging
-	reqLogger := logger.NewRequestLogger("HealthCheck", "/v1/health")
-	reqLogger.LogRequest()
-
-	// Check if context is cancelled
-	if ctx.Err() != nil {
-		reqLogger.LogResponse(int(codes.Canceled), ctx.Err())
-		s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
-			"method": "HealthCheck",
-			"status": "cancelled",
-		})
-		return nil, status.Error(codes.Canceled, "request cancelled")
-	}
-
-	// Perform basic health checks
-	healthStatus := "OK"
-
-	// Check if service data is available
-	if s.svc == nil {
-		healthStatus = "ERROR"
-		reqLogger.LogResponse(int(codes.Internal), fmt.Errorf("service data not available"))
-		s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
-			"method": "HealthCheck",
-			"status": "error",
-		})
-		return &v1.HealthCheckResponse{
-			Status:    healthStatus,
-			Timestamp: timestamppb.Now(),
-		}, nil
-	}
-
-	reqLogger.LogResponse(int(codes.OK), nil)
-	s.metrics.LogCounter("grpc_requests_total", 1, map[string]string{
-		"method": "HealthCheck",
-		"status": "ok",
-	})
-
-	return &v1.HealthCheckResponse{
-		Status:    healthStatus,
-		Timestamp: timestamppb.Now(),
-	}, nil
 }
